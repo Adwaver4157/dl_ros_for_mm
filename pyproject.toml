@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "dl-ros-for-mm"
+version = "0.1.0"
+description = ""
+authors = ["adwaver <adwaver4157@gmail.com>"]
+packages = [{include = "utils"}, {include="model"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+torch = "^2.0.0"
+opencv-python = "^4.7.0.72"
+torchvision = "^0.15.1"
+wandb = "^0.14.0"
+
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.1.1"
+isort = "^5.12.0"
+black = "^23.3.0"
+flake8 = "^6.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
