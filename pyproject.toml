@@ -11,6 +11,8 @@ torch = "^2.0.0"
 opencv-python = "^4.7.0.72"
 torchvision = "^0.15.1"
 wandb = "^0.14.0"
+matplotlib = "^3.7.1"
+tqdm = "^4.65.0"
 
 
 [tool.poetry.group.dev.dependencies]
