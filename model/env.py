@@ -61,41 +61,36 @@ class Env:
         self.hand_rgb_msg = None
         self.joint_states_msg = None
 
-        t = rospy.Time.now()
+        if (
+            self.head_rgb_msg is not None
+            and self.hand_rgb_msg is not None
+            and self.joint_states_msg is not None
+        ):
+            head_rgb = convert_Image(
+                self.head_rgb_msg, self.config["height"], self.config["width"]
+            )
+            hand_rgb = convert_Image(
+                self.hand_rgb_msg, self.config["height"], self.config["width"]
+            )
+            joint_states = convert_JointStates(self.joint_states_msg)
+            torch_data["head_image"] = (
+                torch.tensor(head_rgb, dtype=torch.float32).flip(2).permute(2, 1, 0)
+            )
+            torch_data["hand_image"] = torch.tensor(
+                hand_rgb, dtype=torch.float32
+            ).permute(2, 1, 0)
 
-        # keep trying until timeout or detection success
-        while rospy.Time.now().secs - t.secs < IMAGE_TIMEOUT:
-            if (
-                self.head_rgb_msg is not None
-                and self.hand_rgb_msg is not None
-                and self.joint_states_msg is not None
-            ):
-                head_rgb = convert_Image(
-                    self.head_rgb_msg, self.config["height"], self.config["width"]
-                )
-                hand_rgb = convert_Image(
-                    self.hand_rgb_msg, self.config["height"], self.config["width"]
-                )
-                joint_states = convert_JointStates(self.joint_states_msg)
-                torch_data["head_image"] = (
-                    torch.tensor(head_rgb, dtype=torch.float32).flip(2).permute(2, 1, 0)
-                )
-                torch_data["hand_image"] = torch.tensor(
-                    hand_rgb, dtype=torch.float32
-                ).permute(2, 1, 0)
+            if self.transform:
+                torch_data["head_image"] = self.transform(torch_data["head_image"])
+                torch_data["hand_image"] = self.transform(torch_data["hand_image"])
 
-                if self.transform:
-                    torch_data["head_image"] = self.transform(torch_data["head_image"])
-                    torch_data["hand_image"] = self.transform(torch_data["hand_image"])
+            torch_data["joint_state"] = torch.tensor(
+                joint_states, dtype=torch.float32
+            )
 
-                torch_data["joint_state"] = torch.tensor(
-                    joint_states, dtype=torch.float32
-                )
-            else:
-                rospy.sleep(0.001)
-                # rospy.loginfo(f'No image')
-
-        return torch_data
+            return torch_data
+        else:
+            return None
 
     def head_rgb_callback(self, msg):
         self.head_rgb_msg = msg
