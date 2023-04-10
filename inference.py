@@ -11,7 +11,7 @@ from utils.device import select_device
 def inference(args):
     device = select_device(args.device)
     model = BCAgent()
-    model.load_state_dict(torch.load("best_model.pth"))
+    model.load_state_dict(torch.load("best_model.pth", map_location="cuda:0"))
     model.to(device)
     env = Env(config=args.config)
     agent = ModelAgent(model=model, env=env)

@@ -19,10 +19,10 @@ class BaseAgent:
             "/controller/trigger_c2", Float32, queue_size=1
         )
 
-        while not rospy.is_shutdown():
-            self.step()
+        # while not rospy.is_shutdown():
+        #     self.step()
 
-        rospy.spin()
+        # rospy.spin()
 
     def step(self):
         base_cmd = Twist()
