@@ -11,7 +11,7 @@ from utils.device import select_device
 def inference(args):
     device = select_device(args.device)
     model = BCAgent()
-    model.load_state_dict(torch.load("best_weight.pth"))
+    model.load_state_dict(torch.load("best_model.pth"))
     model.to(device)
     env = Env(config=args.config)
     agent = ModelAgent(model=model, env=env)
@@ -20,7 +20,7 @@ def inference(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/config.json")
-    parser.add_argument("--device", type=str, default="gpu")
+    parser.add_argument("--device", type=str, default="cuda")
     args = parser.parse_args()
 
     inference(args)
