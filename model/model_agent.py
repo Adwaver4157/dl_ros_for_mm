@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse
 
 import numpy as np
@@ -37,6 +39,7 @@ class ModelAgent(BaseAgent):
 
     def step(self):
         obs = self.env.get_obs()
+        print(obs)
         if obs is not None:
             print(obs)
             base_vel, pose_trans, pose_angle, pose_aciton = self.model(obs["head_image"], obs["hand_image"], obs["joint_state"])
@@ -84,4 +87,4 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load("best_weight.pth"))
     model.to(device)
     env = Env(config=args.config)
-    agent = ModelAgent(model=model, env=env)
+    ModelAgent(model=model, env=env)

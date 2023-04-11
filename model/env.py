@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse
 import json
 import os
@@ -57,10 +59,12 @@ class Env:
             Dict of torch tensors: observations of head image, hand image, joint states
         """
         torch_data = {}
-        self.head_rgb_msg = None
-        self.hand_rgb_msg = None
-        self.joint_states_msg = None
-
+        # self.head_rgb_msg = None
+        # self.hand_rgb_msg = None
+        # self.joint_states_msg = None
+        print(f"head: {self.head_rgb_msg}")
+        print(f"hand: {self.hand_rgb_msg}")
+        print(f"joint: {self.joint_states_msg}")
         if (
             self.head_rgb_msg is not None
             and self.hand_rgb_msg is not None
@@ -93,6 +97,7 @@ class Env:
             return None
 
     def head_rgb_callback(self, msg):
+        print(msg)
         self.head_rgb_msg = msg
 
     def hand_rgb_callback(self, msg):
