@@ -1,3 +1,0 @@
-<launch>
-    <node name="inference" pkg="dl_ros_for_mm" type="inference.py" output="screen" />
-</launch>

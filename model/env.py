@@ -1,8 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import json
 import os
+
+import sys
+from os.path import dirname, abspath
+parent_dir = dirname(dirname(abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
 
 import torch
 from torchvision import transforms
@@ -15,7 +21,7 @@ IMAGE_TIMEOUT = 3.0
 
 
 class Env:
-    def __init__(self, config="configs/config.json", transform=None):
+    def __init__(self, config="../configs/config.json", transform=None):
         self.transform = transforms.Compose(
             [
                 transforms.Resize(224, antialias=True),  # type: ignore
@@ -46,6 +52,7 @@ class Env:
             self.joint_states_callback,
             queue_size=1,
         )
+        # print(config)
         if os.path.exists(config):
             with open(config, "r") as f:
                 self.config = json.load(f)
@@ -61,10 +68,10 @@ class Env:
         torch_data = {}
         # self.head_rgb_msg = None
         # self.hand_rgb_msg = None
-        # self.joint_states_msg = None
-        print(f"head: {self.head_rgb_msg}")
-        print(f"hand: {self.hand_rgb_msg}")
-        print(f"joint: {self.joint_states_msg}")
+        # # self.joint_states_msg = None
+        # print(f"head: {self.head_rgb_msg}")
+        # print(f"hand: {self.hand_rgb_msg}")
+        # print(f"joint: {self.joint_states_msg}")
         if (
             self.head_rgb_msg is not None
             and self.hand_rgb_msg is not None
@@ -97,7 +104,6 @@ class Env:
             return None
 
     def head_rgb_callback(self, msg):
-        print(msg)
         self.head_rgb_msg = msg
 
     def hand_rgb_callback(self, msg):
@@ -109,8 +115,9 @@ class Env:
 
 if __name__ == "__main__":
     rospy.init_node("env", anonymous=True)
-    argparser = argparse.ArgumentParser()
-    argparser.add_argument("--config", type=str, default="configs/config.json")
-    args = argparser.parse_args()
+    config = rospy.get_param('/data/config', "/root/catkin_ws/src/dl_ros_for_mm/configs/config.json")
 
-    env = Env(config=args.config)
+    env = Env(config=config)
+
+    while not rospy.is_shutdown():
+        print(env.get_obs())

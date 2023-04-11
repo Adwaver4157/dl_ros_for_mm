@@ -1,0 +1,8 @@
+<launch>
+    <arg name="config" default="/root/catkin_ws/src/dl_ros_for_mm/configs/config.json" />
+    <param name="/data/config" value="$(arg config)" /> 
+    <arg name="device" default="cuda" />
+    <param name="/device" value="$(arg device)" />
+
+    <node name="model_agent" pkg="dl_ros_for_mm" type="model_agent.py" output="screen" />
+</launch>

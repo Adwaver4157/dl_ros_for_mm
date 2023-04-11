@@ -21,18 +21,13 @@ from tqdm import tqdm
 
 def convert_Image(data, height=None, width=None):
     obs = []
-    bridge = CvBridge()
-    for msg in tqdm(data):
-        """try:
-            img = bridge.imgmsg_to_cv2(msg,"bgr8")
-        except CvBridgeError as e:
-            print(e)"""
-        img = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, -1)
-        if height is not None and width is not None:
-            h, w, c = img.shape
-            img = img[0:h, int((w - h) * 0.5) : w - int((w - h) * 0.5), :]
-            img = cv2.resize(img, (height, width))
-        obs.append(img)
+    
+    img = np.frombuffer(data.data, dtype=np.uint8).reshape(data.height, data.width, -1)
+    if height is not None and width is not None:
+        h, w, c = img.shape
+        img = img[0:h, int((w - h) * 0.5) : w - int((w - h) * 0.5), :]
+        img = cv2.resize(img, (height, width))
+    obs.append(img)
     return obs
 
 
@@ -271,9 +266,6 @@ def convert_EndEffectorPose(data):
 
 def convert_JointStates(data, all=False):
     joint_states_list = []
-    tmp_data = data[0]
-    joint_names = tmp_data.name
-    for msg in tqdm(data):
-        joint_states_list.append([msg.position, msg.velocity, msg.effort])
+    joint_states_list.append([data.position, data.velocity, data.effort])
 
     return np.array(joint_states_list)
