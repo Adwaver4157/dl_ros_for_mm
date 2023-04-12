@@ -88,10 +88,11 @@ if __name__ == "__main__":
 
     with open("dataset/sim_move/sim_move.pkl", "rb") as f:
         loaded_data = pickle.load(f)
-    # print(loaded_data[0]["arm_action"])
+    print(loaded_data[0]["base_cmd"])
+    exit()
     train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
     train_dataloader = DataLoader(
-        train_dataset, batch_size=1, shuffle=True, num_workers=1
+        train_dataset, batch_size=1, shuffle=False, num_workers=1
     )
 
     # print(train_dataset.len)
