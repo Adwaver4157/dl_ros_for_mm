@@ -182,7 +182,7 @@ if __name__ == "__main__":
     device = select_device(device)
     import pickle
 
-    with open("dataset/sim_move/sim_move.pkl", "rb") as f:
+    with open("/root/catkin_ws/src/dl_ros_for_mm/dataset/sim_move/sim_move.pkl", "rb") as f:
         loaded_data = pickle.load(f)
     # print(loaded_data[0]["arm_action"])
     # train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
