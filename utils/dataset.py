@@ -86,7 +86,7 @@ class MyDataset(Dataset):
 if __name__ == "__main__":
     import pickle
 
-    with open("dataset/sim/sim.pkl", "rb") as f:
+    with open("dataset/sim_move/sim_move.pkl", "rb") as f:
         loaded_data = pickle.load(f)
     # print(loaded_data[0]["arm_action"])
     train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
@@ -94,9 +94,17 @@ if __name__ == "__main__":
         train_dataset, batch_size=1, shuffle=True, num_workers=1
     )
 
-    (head_images, hand_images, joint_states), (
-        base_cmd,
-        arm_trans,
-        arm_angle,
-        arm_action,
-    ) = next(iter(train_dataloader))
+    # print(train_dataset.len)
+    for i in range(40):
+        print(f"Step {i}")
+        (head_images, hand_images, joint_states), (
+            base_cmd,
+            arm_trans,
+            arm_angle,
+            arm_action,
+        ) = next(iter(train_dataloader))
+        if i % 1 == 0:
+            print(base_cmd)
+            print(arm_trans)
+            print(arm_angle)
+            print(arm_action)

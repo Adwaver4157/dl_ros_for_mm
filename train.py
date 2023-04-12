@@ -28,7 +28,7 @@ def train(args):
     else:
         os.makedirs(f"weight/{args.name}", exist_ok=True)
 
-    with open("dataset/sim/sim.pkl", "rb") as f:
+    with open("dataset/sim_move/sim_move.pkl", "rb") as f:
         loaded_data = pickle.load(f)
 
     preprocess = transforms.Compose(
@@ -99,6 +99,7 @@ def train(args):
                 with torch.set_grad_enabled(phase == "train"):
                     # Get model outputs and calculate loss
                     base_cmd, arm_trans, arm_angle, arm_action = model(*inputs)
+                    print(base_cmd)
                     loss_base = huber_loss(base_cmd, target[0])
                     loss_arm_trans = huber_loss(arm_trans, target[1])
                     loss_arm_angle = huber_loss(arm_angle, target[2])
@@ -166,7 +167,7 @@ def train(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", type=str, default="BC_test")
+    parser.add_argument("--name", type=str, default="BC_sim_move")
     parser.add_argument("--exp_name", type=str, default="change_weight")
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--batch_size", type=int, default=64)
