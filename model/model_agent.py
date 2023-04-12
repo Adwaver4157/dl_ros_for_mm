@@ -99,15 +99,15 @@ class ModelAgent(BaseAgent):
             joint_state = obs["joint_state"].to(self.device)
             base_vel, pose_trans, pose_angle, pose_action = self.model(head_image, hand_image, joint_state)
             
-            base_vel = base_vel.to("cpu").detach().numpy().astype(np.uint8).copy()
+            base_vel = base_vel.to("cpu").detach().numpy().astype(np.float64).copy()
             print(base_vel)
             base_cmd = Twist()
             base_cmd.linear.x = base_vel[0][0]
             base_cmd.angular.z = base_vel[0][1]
             self.base_pub.publish(base_cmd)
 
-            pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.uint8).copy()
-            pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.uint8).copy()
+            pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.float64).copy()
+            pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.float64).copy()
             pose_quaternion = tf.transformations.quaternion_from_euler(
                 pose_euler[0][0], pose_euler[0][1], pose_euler[0][2]
             )
