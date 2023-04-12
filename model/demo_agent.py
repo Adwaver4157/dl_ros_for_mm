@@ -155,8 +155,8 @@ class DemoAgent(BaseAgent):
         #     arm_action,
         # ) = next(iter(train_dataloader))
         base_cmd = self.data["base_cmd"][step]
-        arm_trans = self.data["arm_trans"][step]
-        arm_angle = self.data["arm_angle"][step]
+        arm_trans = self.data["arm_pose"][step][:3]
+        arm_angle = self.data["arm_angle"][step][3:]
         arm_action = self.data["arm_action"][step]
 
         return base_cmd, arm_trans, arm_angle, arm_action
