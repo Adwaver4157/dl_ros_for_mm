@@ -50,7 +50,11 @@ class DemoAgent(BaseAgent):
             ]
         )
         self.device = device
-        self.data = data
+        if data is not None:
+            self.data = data
+        else:
+            ValueError("data is None")
+
         self.head_rgb_msg = None
         self.hand_rgb_msg = None
         self.joint_states_msg = None
@@ -92,13 +96,18 @@ class DemoAgent(BaseAgent):
             "/controller/trigger_c2", Float32, queue_size=1
         )
 
+        self.index = 0
         while not rospy.is_shutdown():
-            self.step()
-
+            if self.index < len(self.data):
+                self.step(self.index)
+                self.index += 1
+            else:
+                break
         rospy.spin()
+        print("Episode is done")
 
-    def step(self):
-        base_vel, pose_trans, pose_angle, pose_action = self.get_action()
+    def step(self, step):
+        base_vel, pose_trans, pose_angle, pose_action = self.get_action(step)
 
         base_vel = base_vel.to("cpu").detach().numpy().astype(np.uint8).copy()
         print(base_vel)
@@ -133,18 +142,22 @@ class DemoAgent(BaseAgent):
         trigger_cmd_2.data = pose_action[0][0]
         self.trigger_pub_2.publish(trigger_cmd_2)
 
-    def get_action(self):
+    def get_action(self, step):
         """get action from dataset
 
         Returns:
             actions: torch action
         """
-        (head_images, hand_images, joint_states), (
-            base_cmd,
-            arm_trans,
-            arm_angle,
-            arm_action,
-        ) = next(iter(train_dataloader))
+        # (head_images, hand_images, joint_states), (
+        #     base_cmd,
+        #     arm_trans,
+        #     arm_angle,
+        #     arm_action,
+        # ) = next(iter(train_dataloader))
+        base_cmd = self.data["base_cmd"][step]
+        arm_trans = self.data["arm_trans"][step]
+        arm_angle = self.data["arm_angle"][step]
+        arm_action = self.data["arm_action"][step]
 
         return base_cmd, arm_trans, arm_angle, arm_action
 
@@ -172,9 +185,9 @@ if __name__ == "__main__":
     with open("dataset/sim_move/sim_move.pkl", "rb") as f:
         loaded_data = pickle.load(f)
     # print(loaded_data[0]["arm_action"])
-    train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
-    train_dataloader = DataLoader(
-        train_dataset, batch_size=1, shuffle=True, num_workers=1
-    )
+    # train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
+    # train_dataloader = DataLoader(
+    #     train_dataset, batch_size=1, shuffle=True, num_workers=1
+    # )
 
-    agent = DemoAgent(device=device, data=train_dataloader)
+    agent = DemoAgent(device=device, data=loaded_data[0])
