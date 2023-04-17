@@ -95,38 +95,39 @@ class DemoAgent(BaseAgent):
         self.trigger_pub_2 = rospy.Publisher(
             "/controller/trigger_c2", Float32, queue_size=1
         )
-
+        rate = rospy.Rate(10)
         self.index = 0
         while not rospy.is_shutdown():
-            if self.index < len(self.data):
+            if self.index < len(self.data["base_cmd"]):
                 self.step(self.index)
                 self.index += 1
             else:
                 break
+            rate.sleep()
         rospy.spin()
         print("Episode is done")
 
     def step(self, step):
         base_vel, pose_trans, pose_angle, pose_action = self.get_action(step)
 
-        base_vel = base_vel.to("cpu").detach().numpy().astype(np.uint8).copy()
-        print(base_vel)
+        base_vel = base_vel.to("cpu").detach().numpy().astype(np.float64).copy()
         base_cmd = Twist()
-        base_cmd.linear.x = base_vel[0][0]
-        base_cmd.angular.z = base_vel[0][1]
+        base_cmd.linear.x = base_vel[0]
+        base_cmd.angular.z = base_vel[1]
+        print(base_cmd)
         self.base_pub.publish(base_cmd)
 
-        pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.uint8).copy()
-        pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.uint8).copy()
+        pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.float64).copy()
+        pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.float64).copy()
         pose_quaternion = tf.transformations.quaternion_from_euler(
-            pose_euler[0][0], pose_euler[0][1], pose_euler[0][2]
+            pose_euler[0], pose_euler[1], pose_euler[2]
         )
         pose_cmd = PoseStamped()
         pose_cmd.header.stamp = rospy.Time.now()
         pose_cmd.header.frame_id = "base_link"
-        pose_cmd.pose.position.x = pose_trans[0][0]
-        pose_cmd.pose.position.y = pose_trans[0][1]
-        pose_cmd.pose.position.z = pose_trans[0][2]
+        pose_cmd.pose.position.x = pose_trans[0]
+        pose_cmd.pose.position.y = pose_trans[1]
+        pose_cmd.pose.position.z = pose_trans[2]
         pose_cmd.pose.orientation.x = pose_quaternion[0]
         pose_cmd.pose.orientation.y = pose_quaternion[1]
         pose_cmd.pose.orientation.z = pose_quaternion[2]
@@ -139,7 +140,7 @@ class DemoAgent(BaseAgent):
 
         pose_action = pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
         trigger_cmd_2 = Float32()
-        trigger_cmd_2.data = pose_action[0][0]
+        trigger_cmd_2.data = pose_action
         self.trigger_pub_2.publish(trigger_cmd_2)
 
     def get_action(self, step):
@@ -154,11 +155,12 @@ class DemoAgent(BaseAgent):
         #     arm_angle,
         #     arm_action,
         # ) = next(iter(train_dataloader))
+        # print(self.data["base_cmd"])
         base_cmd = self.data["base_cmd"][step]
         arm_trans = self.data["arm_pose"][step][:3]
-        arm_angle = self.data["arm_angle"][step][3:]
+        arm_angle = self.data["arm_pose"][step][3:]
         arm_action = self.data["arm_action"][step]
-
+        print(step, base_cmd)
         return base_cmd, arm_trans, arm_angle, arm_action
 
     def head_rgb_callback(self, msg):
@@ -182,7 +184,9 @@ if __name__ == "__main__":
     device = select_device(device)
     import pickle
 
-    with open("/root/catkin_ws/src/dl_ros_for_mm/dataset/sim_move/sim_move.pkl", "rb") as f:
+    with open(
+        "/root/catkin_ws/src/dl_ros_for_mm/dataset/sim_move/sim_move.pkl", "rb"
+    ) as f:
         loaded_data = pickle.load(f)
     # print(loaded_data[0]["arm_action"])
     # train_dataset = MyDataset(data=loaded_data[0], noise=0.005)

@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from os.path import dirname, abspath
+
 parent_dir = dirname(dirname(abspath(__file__)))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
@@ -30,7 +31,13 @@ from utils.device import select_device
 
 
 class ModelAgent(BaseAgent):
-    def __init__(self, model, env, config="/root/catkin_ws/src/dl_ros_for_mm/configs/config.json", device="cuda"):
+    def __init__(
+        self,
+        model,
+        env,
+        config="/root/catkin_ws/src/dl_ros_for_mm/configs/config.json",
+        device="cuda",
+    ):
         super().__init__(model=model)
         self.transform = transforms.Compose(
             [
@@ -44,6 +51,7 @@ class ModelAgent(BaseAgent):
         self.head_rgb_msg = None
         self.hand_rgb_msg = None
         self.joint_states_msg = None
+        self.index = 0
 
         rospy.Subscriber(
             "/hsrb/head_rgbd_sensor/rgb/image_raw",
@@ -69,7 +77,7 @@ class ModelAgent(BaseAgent):
                 self.config = json.load(f)
         else:
             raise ValueError("cannot find config file")
-        
+
         self.model = model
         self.model.eval()
         self.env = env
@@ -84,9 +92,16 @@ class ModelAgent(BaseAgent):
             "/controller/trigger_c2", Float32, queue_size=1
         )
 
-        while not rospy.is_shutdown():
-            self.step()
+        try:
+            while not rospy.is_shutdown():
+                self.step()
 
+        except KeyboardInterrupt:
+            print("Shutting down")
+            base_cmd = Twist()
+            base_cmd.linear.x = 0.0
+            base_cmd.angular.z = 0.0
+            self.base_pub.publish(base_cmd)
         rospy.spin()
 
     def step(self):
@@ -94,11 +109,29 @@ class ModelAgent(BaseAgent):
         # print(obs)
         if obs is not None:
             # print(obs)
-            head_image = obs["head_image"].to(self.device)
-            hand_image = obs["hand_image"].to(self.device)
-            joint_state = obs["joint_state"].to(self.device)
-            base_vel, pose_trans, pose_angle, pose_action = self.model(head_image, hand_image, joint_state)
-            
+            # head_image = obs["head_image"].to(self.device)
+            # hand_image = obs["hand_image"].to(self.device)
+            # joint_state = obs["joint_state"].to(self.device)
+            # base_vel, pose_trans, pose_angle, pose_action = self.model(head_image, hand_image, joint_state)
+            import pickle
+
+            with open("dataset/sim_move/sim_move.pkl", "rb") as f:
+                loaded_data = pickle.load(f)
+            train_data = loaded_data[0]
+            head_image = self.transform(
+                train_data["head_images"][self.index].flip(2).permute(2, 1, 0)
+            )
+            hand_image = self.transform(
+                train_data["hand_images"][self.index].permute(2, 1, 0)
+            )
+            joint_state = train_data["joint_states"][self.index].to(self.device)
+            self.index += 1
+            base_vel, pose_trans, pose_angle, pose_action = self.model(
+                head_image.to(self.device).unsqueeze(0),
+                hand_image.to(self.device).unsqueeze(0),
+                joint_state.unsqueeze(0),
+            )
+
             base_vel = base_vel.to("cpu").detach().numpy().astype(np.float64).copy()
             print(base_vel)
             base_cmd = Twist()
@@ -127,7 +160,9 @@ class ModelAgent(BaseAgent):
             trigger_cmd_1.data = 0.0
             self.trigger_pub_1.publish(trigger_cmd_1)
 
-            pose_action = pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
+            pose_action = (
+                pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
+            )
             trigger_cmd_2 = Float32()
             trigger_cmd_2.data = pose_action[0][0]
             self.trigger_pub_2.publish(trigger_cmd_2)
@@ -160,17 +195,17 @@ class ModelAgent(BaseAgent):
             torch_data["head_image"] = (
                 torch.tensor(head_rgb[0], dtype=torch.float32).flip(2).permute(2, 1, 0)
             ).unsqueeze(0)
-            torch_data["hand_image"] = torch.tensor(
-                hand_rgb[0], dtype=torch.float32
-            ).permute(2, 1, 0).unsqueeze(0)
+            torch_data["hand_image"] = (
+                torch.tensor(hand_rgb[0], dtype=torch.float32)
+                .permute(2, 1, 0)
+                .unsqueeze(0)
+            )
 
             if self.transform:
                 torch_data["head_image"] = self.transform(torch_data["head_image"])
                 torch_data["hand_image"] = self.transform(torch_data["hand_image"])
 
-            torch_data["joint_state"] = torch.tensor(
-                joint_states, dtype=torch.float32
-            )
+            torch_data["joint_state"] = torch.tensor(joint_states, dtype=torch.float32)
 
             return torch_data
         else:
@@ -185,15 +220,23 @@ class ModelAgent(BaseAgent):
     def joint_states_callback(self, msg):
         self.joint_states_msg = msg
 
+
 if __name__ == "__main__":
     rospy.init_node("model_agent")
 
-    config = rospy.get_param('/data/config', "/root/catkin_ws/src/dl_ros_for_mm/configs/config.json")
-    device = rospy.get_param('/device', "cuda")
+    config = rospy.get_param(
+        "/data/config", "/root/catkin_ws/src/dl_ros_for_mm/configs/config.json"
+    )
+    device = rospy.get_param("/device", "cuda")
 
     device = select_device(device)
     model = BCAgent()
-    model.load_state_dict(torch.load("/root/catkin_ws/src/dl_ros_for_mm/best_model.pth", map_location="cuda:0"))
+    model.load_state_dict(
+        torch.load(
+            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_sim_move/best_model.pth",
+            map_location="cuda:0",
+        )
+    )
     model.to(device)
     env = Env(config=config)
     agent = ModelAgent(model=model, env=env)

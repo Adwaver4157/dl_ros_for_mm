@@ -38,12 +38,12 @@ def show_image(image, data_type="head_images"):
     cv2.imwrite("test_2.jpg", bgr)
 
 
-def visualize_image(file_path="dataset/sim/sim.pkl"):
+def visualize_image(file_path="dataset/sim_move/sim_move.pkl"):
     with open(file_path, "rb") as f:
         loaded_data = pickle.load(f)
 
-    # data_type = "head_images"
-    data_type = "hand_images"
+    data_type = "head_images"
+    # data_type = "hand_images"
 
     test_image = loaded_data[0][data_type][38]
     print(len(loaded_data[0][data_type]))

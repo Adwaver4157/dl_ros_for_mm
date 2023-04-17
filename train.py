@@ -38,7 +38,7 @@ def train(args):
         ]
     )
 
-    train_data, test_data = split_dataset(loaded_data, args.split_ratio)
+    train_data, test_data = split_dataset(loaded_data[:2], args.split_ratio)
     # train_dataset = MyDataset(data=[train_data[0]], transform=preprocess)
     train_dataset = MyDataset(
         data=train_data, transform=preprocess, noise=args.action_noise
@@ -143,6 +143,7 @@ def train(args):
             if phase == "val" and epoch_loss < best_loss:
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
+                torch.save(best_model_wts, f"weight/{args.name}/best_model.pth")
 
             val_loss_history.append(epoch_loss)
         scheduler.step()
