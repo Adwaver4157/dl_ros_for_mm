@@ -13,7 +13,7 @@ from torchvision import transforms
 
 from sensor_msgs.msg import Image, JointState
 
-from utils.utils import convert_Image, convert_JointStates
+from utils.utils import convert_Image, convert_JointStates, torch_fix_seed
 
 import argparse
 
@@ -28,6 +28,8 @@ from model.base_agent import BaseAgent
 from model.bc import BCAgent
 from model.env import Env
 from utils.device import select_device
+from utils.dataset import MyDataset
+from torch.utils.data import DataLoader
 
 
 class ModelAgent(BaseAgent):
@@ -108,28 +110,12 @@ class ModelAgent(BaseAgent):
         obs = self.get_obs()
         # print(obs)
         if obs is not None:
-            # print(obs)
-            # head_image = obs["head_image"].to(self.device)
-            # hand_image = obs["hand_image"].to(self.device)
-            # joint_state = obs["joint_state"].to(self.device)
-            # base_vel, pose_trans, pose_angle, pose_action = self.model(head_image, hand_image, joint_state)
-            import pickle
-
-            with open("dataset/sim_move/sim_move.pkl", "rb") as f:
-                loaded_data = pickle.load(f)
-            train_data = loaded_data[0]
-            head_image = self.transform(
-                train_data["head_images"][self.index].flip(2).permute(2, 1, 0)
-            )
-            hand_image = self.transform(
-                train_data["hand_images"][self.index].permute(2, 1, 0)
-            )
-            joint_state = train_data["joint_states"][self.index].to(self.device)
-            self.index += 1
+            print(obs)
+            head_image = obs["head_image"].to(self.device)
+            hand_image = obs["hand_image"].to(self.device)
+            joint_state = obs["joint_state"].to(self.device)
             base_vel, pose_trans, pose_angle, pose_action = self.model(
-                head_image.to(self.device).unsqueeze(0),
-                hand_image.to(self.device).unsqueeze(0),
-                joint_state.unsqueeze(0),
+                head_image, hand_image, joint_state
             )
 
             base_vel = base_vel.to("cpu").detach().numpy().astype(np.float64).copy()
@@ -137,7 +123,11 @@ class ModelAgent(BaseAgent):
             base_cmd = Twist()
             base_cmd.linear.x = base_vel[0][0]
             base_cmd.angular.z = base_vel[0][1]
-            self.base_pub.publish(base_cmd)
+
+            to_ros = False
+            # to_ros = True
+            if to_ros:
+                self.base_pub.publish(base_cmd)
 
             pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.float64).copy()
             pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.float64).copy()
@@ -154,18 +144,21 @@ class ModelAgent(BaseAgent):
             pose_cmd.pose.orientation.y = pose_quaternion[1]
             pose_cmd.pose.orientation.z = pose_quaternion[2]
             pose_cmd.pose.orientation.w = pose_quaternion[3]
-            self.pose_pub_2.publish(pose_cmd)
+            if to_ros:
+                self.pose_pub_2.publish(pose_cmd)
 
             trigger_cmd_1 = Float32()
             trigger_cmd_1.data = 0.0
-            self.trigger_pub_1.publish(trigger_cmd_1)
+            if to_ros:
+                self.trigger_pub_1.publish(trigger_cmd_1)
 
             pose_action = (
                 pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
             )
             trigger_cmd_2 = Float32()
             trigger_cmd_2.data = pose_action[0][0]
-            self.trigger_pub_2.publish(trigger_cmd_2)
+            if to_ros:
+                self.trigger_pub_2.publish(trigger_cmd_2)
 
     def get_obs(self):
         """get ros image and joint states and convert to torch tensor
@@ -222,6 +215,7 @@ class ModelAgent(BaseAgent):
 
 
 if __name__ == "__main__":
+    torch_fix_seed()
     rospy.init_node("model_agent")
 
     config = rospy.get_param(
@@ -230,13 +224,20 @@ if __name__ == "__main__":
     device = rospy.get_param("/device", "cuda")
 
     device = select_device(device)
+    print(device)
     model = BCAgent()
+    # model.load_state_dict(
+    #     torch.load(
+    #         "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_sim_move/best_model.pth",
+    #         map_location="cuda:0",
+    #     )
+    # )
     model.load_state_dict(
         torch.load(
             "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_sim_move/best_model.pth",
-            map_location="cuda:0",
+            map_location="cpu",
         )
     )
     model.to(device)
     env = Env(config=config)
-    agent = ModelAgent(model=model, env=env)
+    agent = ModelAgent(model=model, env=env, device=device)

@@ -16,6 +16,7 @@ import wandb
 from model.bc import BCAgent
 from utils.dataset import MyDataset, split_dataset
 from utils.device import select_device
+from utils.utils import torch_fix_seed
 
 
 def train(args):
@@ -38,13 +39,13 @@ def train(args):
         ]
     )
 
-    train_data, test_data = split_dataset(loaded_data[:2], args.split_ratio)
+    train_data, test_data = split_dataset([loaded_data[0]], args.split_ratio)
     # train_dataset = MyDataset(data=[train_data[0]], transform=preprocess)
     train_dataset = MyDataset(
         data=train_data, transform=preprocess, noise=args.action_noise
     )
     train_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4
+        train_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4
     )
     test_dataset = MyDataset(data=test_data, transform=preprocess)
     test_loader = DataLoader(
@@ -86,7 +87,6 @@ def train(args):
             running_loss = 0.0
 
             # Iterate over data.
-            model.train()
             for batch_idx, (inputs, target) in enumerate(dataloaders[phase]):
                 inputs = list(map(lambda x: x.to(device), inputs))
                 target = list(map(lambda x: x.to(device), target))
@@ -96,6 +96,8 @@ def train(args):
 
                 # forward
                 # track history if only in train
+                # if 5 < batch_idx < 15:
+                #     print(batch_idx)
                 with torch.set_grad_enabled(phase == "train"):
                     # Get model outputs and calculate loss
                     base_cmd, arm_trans, arm_angle, arm_action = model(*inputs)
@@ -167,11 +169,12 @@ def train(args):
 
 
 if __name__ == "__main__":
+    torch_fix_seed()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", type=str, default="BC_sim_move")
+    parser.add_argument("--name", type=str, default="BC_sim_move_batch_40")
     parser.add_argument("--exp_name", type=str, default="change_weight")
     parser.add_argument("--epochs", type=int, default=40)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=40)
     parser.add_argument("--split_ratio", type=float, default=0.8)
     parser.add_argument("--lr", type=float, default=5e-3)
     # parser.add_argument("--momentum", type=float, default=0.5)

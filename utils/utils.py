@@ -5,7 +5,9 @@ import geometry_msgs.msg
 
 # from pytransform3d.transform_manager import TransformManager
 import matplotlib.pyplot as plt
+import random
 import numpy as np
+import torch
 import rospkg
 import rospy
 import tf
@@ -19,9 +21,21 @@ from tf.transformations import *
 from tqdm import tqdm
 
 
+def torch_fix_seed(seed=42):
+    # Python random
+    random.seed(seed)
+    # Numpy
+    np.random.seed(seed)
+    # Pytorch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.use_deterministic_algorithms = True
+
+
 def convert_Image(data, height=None, width=None):
     obs = []
-    
+
     img = np.frombuffer(data.data, dtype=np.uint8).reshape(data.height, data.width, -1)
     if height is not None and width is not None:
         h, w, c = img.shape

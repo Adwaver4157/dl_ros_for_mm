@@ -114,8 +114,12 @@ class DemoAgent(BaseAgent):
         base_cmd = Twist()
         base_cmd.linear.x = base_vel[0]
         base_cmd.angular.z = base_vel[1]
-        print(base_cmd)
-        self.base_pub.publish(base_cmd)
+        # print(base_cmd)
+
+        to_ros = False
+        # to_ros = True
+        if to_ros:
+            self.base_pub.publish(base_cmd)
 
         pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.float64).copy()
         pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.float64).copy()
@@ -132,16 +136,19 @@ class DemoAgent(BaseAgent):
         pose_cmd.pose.orientation.y = pose_quaternion[1]
         pose_cmd.pose.orientation.z = pose_quaternion[2]
         pose_cmd.pose.orientation.w = pose_quaternion[3]
-        self.pose_pub_2.publish(pose_cmd)
+        if to_ros:
+            self.pose_pub_2.publish(pose_cmd)
 
         trigger_cmd_1 = Float32()
         trigger_cmd_1.data = 0.0
-        self.trigger_pub_1.publish(trigger_cmd_1)
+        if to_ros:
+            self.trigger_pub_1.publish(trigger_cmd_1)
 
         pose_action = pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
         trigger_cmd_2 = Float32()
         trigger_cmd_2.data = pose_action
-        self.trigger_pub_2.publish(trigger_cmd_2)
+        if to_ros:
+            self.trigger_pub_2.publish(trigger_cmd_2)
 
     def get_action(self, step):
         """get action from dataset

@@ -12,14 +12,16 @@ def resize_torch(image, size=(224, 224)):
 
 def split_dataset(list_data, ratio=0.8):
     if int(len(list_data) * ratio) == 0:
-        split_idx = 1
+        train_data = list_data
+        test_data = list_data
     elif int(len(list_data) * ratio) == len(list_data):
-        split_idx = -1
+        train_data = list_data
+        test_data = list_data
     else:
         split_idx = int(len(list_data) * ratio)
+        train_data = list_data[:split_idx]
+        test_data = list_data[split_idx:]
 
-    train_data = list_data[:split_idx]
-    test_data = list_data[split_idx:]
     return train_data, test_data
 
 
@@ -88,24 +90,28 @@ if __name__ == "__main__":
 
     with open("dataset/sim_move/sim_move.pkl", "rb") as f:
         loaded_data = pickle.load(f)
-    print(loaded_data[0]["base_cmd"])
-    exit()
+    # print(loaded_data[0]["base_cmd"])
+    # exit()
     train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
     train_dataloader = DataLoader(
         train_dataset, batch_size=1, shuffle=False, num_workers=1
     )
 
-    # print(train_dataset.len)
-    for i in range(40):
-        print(f"Step {i}")
-        (head_images, hand_images, joint_states), (
-            base_cmd,
-            arm_trans,
-            arm_angle,
-            arm_action,
-        ) = next(iter(train_dataloader))
-        if i % 1 == 0:
-            print(base_cmd)
-            print(arm_trans)
-            print(arm_angle)
-            print(arm_action)
+    print(train_dataset.len)
+    for input, output in train_dataloader:
+        print(output[0])
+
+    # for i in range(train_dataset.len):
+    #     print(f"Step {i}")
+    #     (head_images, hand_images, joint_states), (
+    #         base_cmd,
+    #         arm_trans,
+    #         arm_angle,
+    #         arm_action,
+    #     ) = next(iter(train_dataloader))
+    #     if i % 1 == 0:
+    #         print(base_cmd)
+    # print(base_cmd)
+    # print(arm_trans)
+    # print(arm_angle)
+    # print(arm_action)
