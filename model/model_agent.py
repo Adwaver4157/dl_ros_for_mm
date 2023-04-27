@@ -68,7 +68,7 @@ class ModelAgent(BaseAgent):
             queue_size=1,
         )
         rospy.Subscriber(
-            "/hsrb/joint_states",
+            "/hsrb/robot_state/joint_states",
             JointState,
             self.joint_states_callback,
             queue_size=1,
@@ -110,7 +110,7 @@ class ModelAgent(BaseAgent):
         obs = self.get_obs()
         # print(obs)
         if obs is not None:
-            print(obs)
+            # print(obs)
             head_image = obs["head_image"].to(self.device)
             hand_image = obs["hand_image"].to(self.device)
             joint_state = obs["joint_state"].to(self.device)
@@ -119,13 +119,13 @@ class ModelAgent(BaseAgent):
             )
 
             base_vel = base_vel.to("cpu").detach().numpy().astype(np.float64).copy()
-            print(base_vel)
+            # print(base_vel)
             base_cmd = Twist()
-            base_cmd.linear.x = base_vel[0][0]
-            base_cmd.angular.z = base_vel[0][1]
+            # base_cmd.linear.x = base_vel[0][0]
+            # base_cmd.angular.z = base_vel[0][1]
 
-            to_ros = False
-            # to_ros = True
+            # to_ros = False
+            to_ros = True
             if to_ros:
                 self.base_pub.publish(base_cmd)
 
@@ -144,6 +144,7 @@ class ModelAgent(BaseAgent):
             pose_cmd.pose.orientation.y = pose_quaternion[1]
             pose_cmd.pose.orientation.z = pose_quaternion[2]
             pose_cmd.pose.orientation.w = pose_quaternion[3]
+            print(pose_cmd)
             if to_ros:
                 self.pose_pub_2.publish(pose_cmd)
 
@@ -156,6 +157,7 @@ class ModelAgent(BaseAgent):
                 pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
             )
             trigger_cmd_2 = Float32()
+            print(pose_action[0][0])
             trigger_cmd_2.data = pose_action[0][0]
             if to_ros:
                 self.trigger_pub_2.publish(trigger_cmd_2)
@@ -234,7 +236,7 @@ if __name__ == "__main__":
     # )
     model.load_state_dict(
         torch.load(
-            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_sim_move/best_model.pth",
+            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_arm/best_model.pth",
             map_location="cpu",
         )
     )

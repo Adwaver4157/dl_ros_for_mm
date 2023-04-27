@@ -29,7 +29,7 @@ def train(args):
     else:
         os.makedirs(f"weight/{args.name}", exist_ok=True)
 
-    with open("dataset/sim_move/sim_move.pkl", "rb") as f:
+    with open(f"dataset/{args.dataset_name}/{args.dataset_name}.pkl", "rb") as f:
         loaded_data = pickle.load(f)
 
     preprocess = transforms.Compose(
@@ -100,6 +100,7 @@ def train(args):
                 #     print(batch_idx)
                 with torch.set_grad_enabled(phase == "train"):
                     # Get model outputs and calculate loss
+                    # print(inputs[2].shape)
                     base_cmd, arm_trans, arm_angle, arm_action = model(*inputs)
                     print(base_cmd)
                     loss_base = huber_loss(base_cmd, target[0])
@@ -171,17 +172,19 @@ def train(args):
 if __name__ == "__main__":
     torch_fix_seed()
     parser = argparse.ArgumentParser()
-    parser.add_argument("--name", type=str, default="BC_sim_move_batch_40")
-    parser.add_argument("--exp_name", type=str, default="change_weight")
+
+    parser.add_argument("--name", type=str, default="BC_arm")
+    parser.add_argument("--exp_name", type=str, default="size_1")
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--batch_size", type=int, default=40)
     parser.add_argument("--split_ratio", type=float, default=0.8)
     parser.add_argument("--lr", type=float, default=5e-3)
     # parser.add_argument("--momentum", type=float, default=0.5)
-    parser.add_argument("--device", type=str, default="mps")
+    parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--log_interval", type=int, default=5)
     parser.add_argument("--action_noise", type=float, default=0.000)
+    parser.add_argument("--dataset_name", type=str, default="arm")
     args = parser.parse_args()
 
     train(args)

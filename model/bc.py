@@ -15,7 +15,7 @@ from utils.dataset import MyDataset
 class BCAgent(nn.Module):
     def __init__(
         self,
-        mlp_input_dim=39,
+        mlp_input_dim=87, # 39
         mlp_hidden_dims=[50, 50],
         mlp_output_dim=40,
         cnn_embed_dim=64,

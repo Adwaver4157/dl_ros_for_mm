@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/storage/home/robot_dev2/takanami/hsr_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/storage/home/robot_dev2/takanami/hsr_ws/src/vrviz/openvr_library/include/**",
+        "/storage/home/robot_dev2/takanami/hsr_ws/src/rtabmap_ros/include/**",
+        "/storage/home/robot_dev2/takanami/hsr_ws/src/vrviz/sdl2_library/include/**",
+        "/opt/ros/noetic/share/tmc_julius/include/**",
+        "/storage/home/robot_dev2/takanami/hsr_ws/src/vrviz/vrviz/include/**",
+        "/storage/home/robot_dev2/takanami/hsr_ws/src/vrviz/vulkan_library/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

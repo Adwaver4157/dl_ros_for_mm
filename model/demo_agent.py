@@ -120,7 +120,6 @@ class DemoAgent(BaseAgent):
         # to_ros = True
         if to_ros:
             self.base_pub.publish(base_cmd)
-
         pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.float64).copy()
         pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.float64).copy()
         pose_quaternion = tf.transformations.quaternion_from_euler(
@@ -149,6 +148,7 @@ class DemoAgent(BaseAgent):
         trigger_cmd_2.data = pose_action
         if to_ros:
             self.trigger_pub_2.publish(trigger_cmd_2)
+
 
     def get_action(self, step):
         """get action from dataset
@@ -182,6 +182,7 @@ class DemoAgent(BaseAgent):
 
 if __name__ == "__main__":
     rospy.init_node("model_agent")
+
 
     config = rospy.get_param(
         "/data/config", "/root/catkin_ws/src/dl_ros_for_mm/configs/config.json"
