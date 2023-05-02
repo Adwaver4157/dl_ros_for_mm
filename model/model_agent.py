@@ -21,7 +21,7 @@ import numpy as np
 import torch
 import rospy
 import tf
-from geometry_msgs.msg import PoseStamped, Twist
+from geometry_msgs.msg import PoseStamped, Twist, Vector3, Quaternion
 from std_msgs.msg import Float32
 
 from model.base_agent import BaseAgent
@@ -39,6 +39,8 @@ class ModelAgent(BaseAgent):
         env,
         config="/root/catkin_ws/src/dl_ros_for_mm/configs/config.json",
         device="cuda",
+        steps=25,
+        # steps=110,
     ):
         super().__init__(model=model)
         self.transform = transforms.Compose(
@@ -54,6 +56,7 @@ class ModelAgent(BaseAgent):
         self.hand_rgb_msg = None
         self.joint_states_msg = None
         self.index = 0
+        self.steps = steps
 
         rospy.Subscriber(
             "/hsrb/head_rgbd_sensor/rgb/image_raw",
@@ -81,7 +84,7 @@ class ModelAgent(BaseAgent):
             raise ValueError("cannot find config file")
 
         self.model = model
-        self.model.eval()
+        self.model.train()
         self.env = env
         self.base_pub = rospy.Publisher("/mss/m2s/base_pub", Twist, queue_size=1)
         self.pose_pub_2 = rospy.Publisher(
@@ -93,10 +96,18 @@ class ModelAgent(BaseAgent):
         self.trigger_pub_2 = rospy.Publisher(
             "/controller/trigger_c2", Float32, queue_size=1
         )
+        self.prev_pos_trans = Vector3(0, 0, 0)
+        self.prev_pos_quat = Quaternion(0, 0, 0, 1)
 
         try:
             while not rospy.is_shutdown():
-                self.step()
+                if self.index < self.steps:
+                    self.step()
+                else:
+                    break
+            trigger_cmd_2 = Float32()
+            trigger_cmd_2.data = 0.0
+            self.trigger_pub_2.publish(trigger_cmd_2)
 
         except KeyboardInterrupt:
             print("Shutting down")
@@ -108,9 +119,7 @@ class ModelAgent(BaseAgent):
 
     def step(self):
         obs = self.get_obs()
-        # print(obs)
         if obs is not None:
-            # print(obs)
             head_image = obs["head_image"].to(self.device)
             hand_image = obs["hand_image"].to(self.device)
             joint_state = obs["joint_state"].to(self.device)
@@ -137,14 +146,14 @@ class ModelAgent(BaseAgent):
             pose_cmd = PoseStamped()
             pose_cmd.header.stamp = rospy.Time.now()
             pose_cmd.header.frame_id = "base_link"
-            pose_cmd.pose.position.x = pose_trans[0][0]
-            pose_cmd.pose.position.y = pose_trans[0][1]
-            pose_cmd.pose.position.z = pose_trans[0][2]
-            pose_cmd.pose.orientation.x = pose_quaternion[0]
-            pose_cmd.pose.orientation.y = pose_quaternion[1]
-            pose_cmd.pose.orientation.z = pose_quaternion[2]
-            pose_cmd.pose.orientation.w = pose_quaternion[3]
-            print(pose_cmd)
+            pose_cmd.pose.position.x = self.prev_pos_trans.x + pose_trans[0][0]
+            pose_cmd.pose.position.y = self.prev_pos_trans.y + pose_trans[0][1]
+            pose_cmd.pose.position.z = self.prev_pos_trans.z + pose_trans[0][2]
+            pose_cmd.pose.orientation.x = self.prev_pos_quat.x + pose_quaternion[0]
+            pose_cmd.pose.orientation.y = self.prev_pos_quat.y + pose_quaternion[1]
+            pose_cmd.pose.orientation.z = self.prev_pos_quat.z + pose_quaternion[2]
+            pose_cmd.pose.orientation.w = self.prev_pos_quat.w + pose_quaternion[3]
+            print(pose_trans)
             if to_ros:
                 self.pose_pub_2.publish(pose_cmd)
 
@@ -159,8 +168,14 @@ class ModelAgent(BaseAgent):
             trigger_cmd_2 = Float32()
             print(pose_action[0][0])
             trigger_cmd_2.data = pose_action[0][0]
+            trigger_cmd_2.data = 1.0
             if to_ros:
                 self.trigger_pub_2.publish(trigger_cmd_2)
+
+            self.prev_pos_trans = pose_cmd.pose.position
+            self.prev_pos_quat = pose_cmd.pose.orientation
+            print(self.prev_pos_trans)
+            self.index += 1
 
     def get_obs(self):
         """get ros image and joint states and convert to torch tensor
@@ -226,18 +241,12 @@ if __name__ == "__main__":
     device = rospy.get_param("/device", "cuda")
 
     device = select_device(device)
-    print(device)
     model = BCAgent()
-    # model.load_state_dict(
-    #     torch.load(
-    #         "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_sim_move/best_model.pth",
-    #         map_location="cuda:0",
-    #     )
-    # )
     model.load_state_dict(
         torch.load(
             "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_arm/best_model.pth",
-            map_location="cpu",
+            # "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp/best_model.pth",
+            map_location="cuda:0",
         )
     )
     model.to(device)

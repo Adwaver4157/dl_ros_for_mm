@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
+import pickle
+import argparse
 
 
 def resize_torch(image, size=(224, 224)):
@@ -44,15 +46,15 @@ class MyDataset(Dataset):
         return concat_data
 
     def __len__(self):
-        return self.len
+        return self.len - 1
 
     def __getitem__(self, index):
         head_image = self.data["head_images"][index]
         hand_image = self.data["hand_images"][index]
         joint_states = self.data["joint_states"][index]
         base_cmd = self.data["base_cmd"][index]
-        arm_trans = self.data["arm_pose"][index][:3]
-        arm_angle = self.data["arm_pose"][index][3:]
+        arm_trans = self.data["arm_pose"][index+1][:3] - self.data["arm_pose"][index][:3]
+        arm_angle = self.data["arm_pose"][index+1][3:] - self.data["arm_pose"][index][3:]
         arm_action = self.data["arm_action"][index].unsqueeze(0)
         # print(f"{index}: {arm_action}")
         # arm_action = torch.where(
@@ -86,20 +88,37 @@ class MyDataset(Dataset):
 
 
 if __name__ == "__main__":
-    import pickle
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=str, default="run_and_grasp")
+    args = parser.parse_args()
 
-    with open("dataset/sim_move/sim_move.pkl", "rb") as f:
+    with open(f"dataset/{args.dataset}/{args.dataset}.pkl", "rb") as f:
         loaded_data = pickle.load(f)
-    # print(loaded_data[0]["base_cmd"])
-    # exit()
-    train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
-    train_dataloader = DataLoader(
-        train_dataset, batch_size=1, shuffle=False, num_workers=1
-    )
+    print(len(loaded_data))
+    print(len(loaded_data[0]["base_cmd"]))
+    print(loaded_data[0].keys())
+    print(loaded_data[0]["arm_action"])
 
-    print(train_dataset.len)
-    for input, output in train_dataloader:
-        print(output[0])
+    # with open(f"dataset/{args.dataset}/{args.dataset}_origin.pkl", "rb") as f:
+    #     loaded_data = pickle.load(f)
+    # print(len(loaded_data))
+    # print(len(loaded_data[0]["base_cmd"]))
+    # print(loaded_data[0].keys())
+    # print(loaded_data[0]["arm_action"])
+    # for key in loaded_data[0].keys():
+    #     loaded_data[0][key] = loaded_data[0][key][:100]
+    # # loaded_data[0]["arm_action"] = loaded_data[0]["arm_action"][:100]
+    # with open(f"dataset/{args.dataset}/{args.dataset}.pkl", "wb") as f:
+    #     pickle.dump(loaded_data, f)
+    # exit()
+    # train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
+    # train_dataloader = DataLoader(
+    #     train_dataset, batch_size=1, shuffle=False, num_workers=1
+    # )
+
+    # print(train_dataset.len)
+    # for input, output in train_dataloader:
+    #     print(output[0])
 
     # for i in range(train_dataset.len):
     #     print(f"Step {i}")

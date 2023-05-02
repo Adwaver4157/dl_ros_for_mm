@@ -13,3 +13,4 @@ print(f"arm_pose size: {loaded_data[0]['arm_pose'].shape}")
 print(f"arm_action size: {loaded_data[0]['arm_action'].shape}")
 
 print(f"arm_pose: {loaded_data[0]['arm_pose']}")
+print(f"joint_states: {loaded_data[0]['joint_states'][0]}")

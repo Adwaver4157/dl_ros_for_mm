@@ -24,6 +24,7 @@ class BCAgent(nn.Module):
         arm_trans_dims=3,
         arm_angle_dims=3,
         arm_action_dims=1,
+        debug=False,
     ):
         super(BCAgent, self).__init__()
         self.mlp = MLP(
@@ -53,10 +54,14 @@ class BCAgent(nn.Module):
             hidden_dims=action_embed_dims,
             output_dims=arm_action_dims,
         )
+        self.debug = debug
 
     def forward(self, head_image, hand_image, joint_states):
         head_embed = self.head_cnn(head_image)
         hand_embed = self.hand_cnn(hand_image)
+        if self.debug:
+            print(f"head_embed: {head_embed}")
+            print(f"hand_embed: {hand_embed}")
         obs_embed = self.mlp(joint_states)
         x = torch.cat([head_embed, hand_embed, obs_embed], dim=1)
         base_cmd = self.base_cmd_output(x)
@@ -66,11 +71,61 @@ class BCAgent(nn.Module):
         arm_action = torch.cat([arm_action, 1 - arm_action], dim=1)
         return base_cmd, arm_trans, arm_angle, arm_action
 
+class BCAgentNoCNN(nn.Module):
+    def __init__(
+        self,
+        mlp_input_dim=87, # 39
+        mlp_hidden_dims=[50, 50],
+        mlp_output_dim=40,
+        action_embed_dims=[256, 256],
+        base_cmd_dims=2,
+        arm_trans_dims=3,
+        arm_angle_dims=3,
+        arm_action_dims=1,
+        debug=False,
+    ):
+        super(BCAgentNoCNN, self).__init__()
+        self.mlp = MLP(
+            input_dims=mlp_input_dim,
+            hidden_dims=mlp_hidden_dims,
+            output_dims=mlp_output_dim,
+        )
+        self.base_cmd_output = MLP(
+            input_dims=mlp_output_dim,
+            hidden_dims=action_embed_dims,
+            output_dims=base_cmd_dims,
+        )
+        self.arm_trans_output = MLP(
+            input_dims=mlp_output_dim,
+            hidden_dims=action_embed_dims,
+            output_dims=arm_trans_dims,
+        )
+        self.arm_angle_output = MLP(
+            input_dims=mlp_output_dim,
+            hidden_dims=action_embed_dims,
+            output_dims=arm_angle_dims,
+        )
+        self.arm_action_output = MLP(
+            input_dims=mlp_output_dim,
+            hidden_dims=action_embed_dims,
+            output_dims=arm_action_dims,
+        )
+        self.debug = debug
+
+    def forward(self, joint_states):
+        obs_embed = self.mlp(joint_states)
+        # base_cmd = self.base_cmd_output(obs_embed)
+        arm_trans = self.arm_trans_output(obs_embed)
+        arm_angle = self.arm_angle_output(obs_embed)
+        # arm_action = self.arm_action_output(obs_embed)
+        # arm_action = torch.cat([arm_action, 1 - arm_action], dim=1)
+        return arm_trans, arm_angle
 
 if __name__ == "__main__":
     model = BCAgent()
+    model = BCAgentNoCNN()
     # print(model)
-    with open("dataset/sim/sim.pkl", "rb") as f:
+    with open("dataset/arm/arm.pkl", "rb") as f:
         loaded_data = pickle.load(f)
 
     preprocess = transforms.Compose(
@@ -92,7 +147,7 @@ if __name__ == "__main__":
     ) = next(iter(train_dataloader))
 
     with torch.no_grad():
-        output = model(head_images, hand_images, joint_states)
+        output = model(joint_states)
     # Tensor of shape 1000, with confidence scores over Imagenet's 1000 classes
     print(output[0].shape)
     print(output[1].shape)

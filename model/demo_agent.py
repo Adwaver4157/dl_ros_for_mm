@@ -23,7 +23,8 @@ import numpy as np
 import torch
 import rospy
 import tf
-from geometry_msgs.msg import PoseStamped, Twist
+
+from geometry_msgs.msg import PoseStamped, Twist, Vector3, Quaternion
 from std_msgs.msg import Float32
 
 from model.base_agent import BaseAgent
@@ -95,16 +96,24 @@ class DemoAgent(BaseAgent):
         self.trigger_pub_2 = rospy.Publisher(
             "/controller/trigger_c2", Float32, queue_size=1
         )
-        rate = rospy.Rate(10)
+
+        self.prev_pos_trans = Vector3(0, 0, 0)
+        self.prev_pos_quat = Quaternion(0, 0, 0, 1)
+
+        rate = rospy.Rate(5)
         self.index = 0
         while not rospy.is_shutdown():
-            if self.index < len(self.data["base_cmd"]):
+            if self.index < len(self.data["base_cmd"]) - 1:
                 self.step(self.index)
                 self.index += 1
             else:
                 break
             rate.sleep()
+        trigger_cmd_2 = Float32()
+        trigger_cmd_2.data = 0.0
+        self.trigger_pub_2.publish(trigger_cmd_2)
         rospy.spin()
+
         print("Episode is done")
 
     def step(self, step):
@@ -116,8 +125,8 @@ class DemoAgent(BaseAgent):
         base_cmd.angular.z = base_vel[1]
         # print(base_cmd)
 
-        to_ros = False
-        # to_ros = True
+        # to_ros = False
+        to_ros = True
         if to_ros:
             self.base_pub.publish(base_cmd)
         pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.float64).copy()
@@ -127,27 +136,39 @@ class DemoAgent(BaseAgent):
         )
         pose_cmd = PoseStamped()
         pose_cmd.header.stamp = rospy.Time.now()
-        pose_cmd.header.frame_id = "base_link"
-        pose_cmd.pose.position.x = pose_trans[0]
-        pose_cmd.pose.position.y = pose_trans[1]
-        pose_cmd.pose.position.z = pose_trans[2]
-        pose_cmd.pose.orientation.x = pose_quaternion[0]
-        pose_cmd.pose.orientation.y = pose_quaternion[1]
-        pose_cmd.pose.orientation.z = pose_quaternion[2]
-        pose_cmd.pose.orientation.w = pose_quaternion[3]
+        pose_cmd.header.frame_id = "hand_palm_link"
+        # pose_cmd.pose.position.x = self.prev_pos_trans.x
+        # pose_cmd.pose.position.y = self.prev_pos_trans.y
+        # pose_cmd.pose.position.z = self.prev_pos_trans.z
+        # pose_cmd.pose.orientation.x = self.prev_pos_quat.x
+        # pose_cmd.pose.orientation.y = self.prev_pos_quat.y
+        # pose_cmd.pose.orientation.z = self.prev_pos_quat.z
+        # pose_cmd.pose.orientation.w = self.prev_pos_quat.w
+        pose_cmd.pose.position.x = self.prev_pos_trans.x + pose_trans[0]
+        pose_cmd.pose.position.y = self.prev_pos_trans.y + pose_trans[1]
+        pose_cmd.pose.position.z = self.prev_pos_trans.z + pose_trans[2]
+        pose_cmd.pose.orientation.x = self.prev_pos_quat.x + pose_quaternion[0]
+        pose_cmd.pose.orientation.y = self.prev_pos_quat.y + pose_quaternion[1]
+        pose_cmd.pose.orientation.z = self.prev_pos_quat.z + pose_quaternion[2]
+        pose_cmd.pose.orientation.w = self.prev_pos_quat.w + pose_quaternion[3]
         if to_ros:
             self.pose_pub_2.publish(pose_cmd)
 
         trigger_cmd_1 = Float32()
-        trigger_cmd_1.data = 0.0
+        trigger_cmd_1.data = 1.0
         if to_ros:
             self.trigger_pub_1.publish(trigger_cmd_1)
 
         pose_action = pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
         trigger_cmd_2 = Float32()
-        trigger_cmd_2.data = pose_action
+        trigger_cmd_2.data = 1.0
         if to_ros:
             self.trigger_pub_2.publish(trigger_cmd_2)
+
+        self.prev_pos_trans = pose_cmd.pose.position
+        self.prev_pos_quat = pose_cmd.pose.orientation
+        print(self.prev_pos_trans)
+        print(step, pose_trans)
 
 
     def get_action(self, step):
@@ -164,10 +185,10 @@ class DemoAgent(BaseAgent):
         # ) = next(iter(train_dataloader))
         # print(self.data["base_cmd"])
         base_cmd = self.data["base_cmd"][step]
-        arm_trans = self.data["arm_pose"][step][:3]
-        arm_angle = self.data["arm_pose"][step][3:]
+        arm_trans = self.data["arm_pose"][step+1][:3] - self.data["arm_pose"][step][:3]
+        arm_angle = self.data["arm_pose"][step+1][3:] - self.data["arm_pose"][step][3:]
         arm_action = self.data["arm_action"][step]
-        print(step, base_cmd)
+        # print(step, arm_trans)
         return base_cmd, arm_trans, arm_angle, arm_action
 
     def head_rgb_callback(self, msg):
@@ -193,7 +214,8 @@ if __name__ == "__main__":
     import pickle
 
     with open(
-        "/root/catkin_ws/src/dl_ros_for_mm/dataset/sim_move/sim_move.pkl", "rb"
+        # "/root/catkin_ws/src/dl_ros_for_mm/dataset/run_and_grasp/run_and_grasp.pkl", "rb"
+        "/root/catkin_ws/src/dl_ros_for_mm/dataset/arm/arm.pkl", "rb"
     ) as f:
         loaded_data = pickle.load(f)
     # print(loaded_data[0]["arm_action"])
