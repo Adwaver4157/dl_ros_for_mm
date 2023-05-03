@@ -81,8 +81,8 @@ RUN apt-get update && \
 
 
 RUN source /root/.bashrc && \
-    pip install matplotlib && \
-    pip install torch==1.11.0+cu115 torchvision==0.12.0+cu115 torchaudio==0.11.0+cu115 -f https://download.pytorch.org/whl/cu115/torch_stable.html
+    pip install matplotlib tqdm scipy && \
+    pip install torch torchvision
 
 # Copy the helper scripts to the working directory.
 COPY ./docker/scripts/. /root/scripts/
