@@ -216,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--log_interval", type=int, default=5)
     parser.add_argument("--action_noise", type=float, default=0.000)
-    parser.add_argument("--dataset_name", type=str, default="run_and_grasp")
+    parser.add_argument("--dataset_name", type=str, default="run_and_grasp_half")
     parser.add_argument("--model_name", type=str, default="cnn", choices=["cnn", "wo_cnn"])
     args = parser.parse_args()
 

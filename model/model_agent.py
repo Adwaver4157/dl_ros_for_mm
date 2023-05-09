@@ -31,6 +31,36 @@ from utils.device import select_device
 from utils.dataset import MyDataset
 from torch.utils.data import DataLoader
 
+def visualize_movie(file_path="dataset/run_and_grasp/run_and_grasp.pkl"):
+    with open(file_path, "rb") as f:
+        loaded_data = pickle.load(f)
+
+    # data_type = "head_images"
+    data_type = "hand_images"
+    images = loaded_data[0][data_type]
+    print(f'images steps: {len(images)}')
+
+    fig, ax = plt.subplots()
+
+
+    def update(image):
+        numpy_image = (image.to("cpu").detach().numpy()).astype(np.uint8).copy()
+        image = torch.Tensor(cv2.resize(numpy_image, (224, 224)))
+        print(image.shape)
+        if data_type == "head_images":
+            # headがなぜかbgrがデフォルト
+            image = image.permute(2, 1, 0).permute(2, 1, 0)
+            # bgr = numpy_image.transpose(2, 1, 0)
+        else:
+            image = image.permute(2, 1, 0).permute(2, 1, 0).flip(2)
+        bgr = image.to("cpu").detach().numpy().astype(np.uint8).copy()
+        rgb = bgr[...,::-1].copy()
+        plt.clf()
+        plt.imshow(rgb)
+
+    anim = animation.FuncAnimation(fig, update, frames=images, interval=100)
+
+    plt.show()
 
 class ModelAgent(BaseAgent):
     def __init__(
@@ -39,8 +69,8 @@ class ModelAgent(BaseAgent):
         env,
         config="/root/catkin_ws/src/dl_ros_for_mm/configs/config.json",
         device="cuda",
-        steps=25,
-        # steps=110,
+        # steps=25,
+        steps=110,
     ):
         super().__init__(model=model)
         self.transform = transforms.Compose(
@@ -57,6 +87,8 @@ class ModelAgent(BaseAgent):
         self.joint_states_msg = None
         self.index = 0
         self.steps = steps
+        
+        self.image_lst = []
 
         rospy.Subscriber(
             "/hsrb/head_rgbd_sensor/rgb/image_raw",
@@ -145,7 +177,7 @@ class ModelAgent(BaseAgent):
             )
             pose_cmd = PoseStamped()
             pose_cmd.header.stamp = rospy.Time.now()
-            pose_cmd.header.frame_id = "base_link"
+            pose_cmd.header.frame_id = "hand_palm_link"
             pose_cmd.pose.position.x = self.prev_pos_trans.x + pose_trans[0][0]
             pose_cmd.pose.position.y = self.prev_pos_trans.y + pose_trans[0][1]
             pose_cmd.pose.position.z = self.prev_pos_trans.z + pose_trans[0][2]
@@ -153,7 +185,6 @@ class ModelAgent(BaseAgent):
             pose_cmd.pose.orientation.y = self.prev_pos_quat.y + pose_quaternion[1]
             pose_cmd.pose.orientation.z = self.prev_pos_quat.z + pose_quaternion[2]
             pose_cmd.pose.orientation.w = self.prev_pos_quat.w + pose_quaternion[3]
-            print(pose_trans)
             if to_ros:
                 self.pose_pub_2.publish(pose_cmd)
 
@@ -166,7 +197,7 @@ class ModelAgent(BaseAgent):
                 pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
             )
             trigger_cmd_2 = Float32()
-            print(pose_action[0][0])
+            # print(pose_action[0][0])
             trigger_cmd_2.data = pose_action[0][0]
             trigger_cmd_2.data = 1.0
             if to_ros:
@@ -174,7 +205,8 @@ class ModelAgent(BaseAgent):
 
             self.prev_pos_trans = pose_cmd.pose.position
             self.prev_pos_quat = pose_cmd.pose.orientation
-            print(self.prev_pos_trans)
+            # print(self.prev_pos_trans)
+            print(self.index, pose_trans)
             self.index += 1
 
     def get_obs(self):
@@ -214,12 +246,39 @@ class ModelAgent(BaseAgent):
             if self.transform:
                 torch_data["head_image"] = self.transform(torch_data["head_image"])
                 torch_data["hand_image"] = self.transform(torch_data["hand_image"])
+            
+            visualize  = True
+            if visualize:
+                self.image_lst.append(torch_data["hand_image"])
+                if len(self.image_lst) % 50:
+                    fig, ax = plt.subplots()
+                    anim = animation.FuncAnimation(fig, update, frames=self.image_lst, interval=100)
 
+                    plt.show()
+            
             torch_data["joint_state"] = torch.tensor(joint_states, dtype=torch.float32)
 
             return torch_data
         else:
             return None
+
+    def update(self, image):
+        data_type = "hand_image"
+        numpy_image = (torch_data[data_type].permute(2, 1, 0).squeeze(0).to("cpu").detach().numpy()).astype(np.uint8).copy()
+        image = torch.Tensor(cv2.resize(numpy_image, (224, 224)))
+        print(image.shape)
+        if data_type == "head_images":
+            # headがなぜかbgrがデフォルト
+            image = image.permute(2, 1, 0).permute(2, 1, 0)
+            # bgr = numpy_image.transpose(2, 1, 0)
+        else:
+            image = image.permute(2, 1, 0).permute(2, 1, 0).flip(2)
+        bgr = image.to("cpu").detach().numpy().astype(np.uint8).copy()
+        rgb = bgr[...,::-1].copy()
+        plt.clf()
+        plt.imshow(rgb)
+
+            
 
     def head_rgb_callback(self, msg):
         self.head_rgb_msg = msg
@@ -244,8 +303,8 @@ if __name__ == "__main__":
     model = BCAgent()
     model.load_state_dict(
         torch.load(
-            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_arm/best_model.pth",
-            # "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp/best_model.pth",
+            # "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_arm/best_model.pth",
+            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp/model_35.pth",
             map_location="cuda:0",
         )
     )

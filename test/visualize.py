@@ -42,24 +42,29 @@ def show_image(image, data_type="head_images"):
     cv2.imwrite("test_2.jpg", bgr)
 
 
-def visualize_image(file_path="dataset/sim_move/sim_move.pkl"):
+def visualize_image(file_path="dataset/run_and_grasp/run_and_grasp.pkl", index=0):
     with open(file_path, "rb") as f:
         loaded_data = pickle.load(f)
 
-    data_type = "head_images"
-    # data_type = "hand_images"
+    # data_type = "head_images"
+    data_type = "hand_images"
 
-    test_image = loaded_data[0][data_type][38]
+    test_image = loaded_data[0][data_type][index]
     print(len(loaded_data[0][data_type]))
     print(test_image.shape)
     show_image(test_image, data_type=data_type)
 
-def visualize_movie(file_path="dataset/sim_move/sim_move.pkl"):
+def interactive_visualize_image():
+    while True:
+        index = int(input("enter index:"))
+        visualize_image(index=index)
+
+def visualize_movie(file_path="dataset/run_and_grasp/run_and_grasp.pkl"):
     with open(file_path, "rb") as f:
         loaded_data = pickle.load(f)
 
-    data_type = "head_images"
-    # data_type = "hand_images"
+    # data_type = "head_images"
+    data_type = "hand_images"
     images = loaded_data[0][data_type]
     print(f'images steps: {len(images)}')
 
@@ -89,4 +94,5 @@ def visualize_movie(file_path="dataset/sim_move/sim_move.pkl"):
 
 if __name__ == "__main__":
     # visualize_image()
+    # interactive_visualize_image()
     visualize_movie()

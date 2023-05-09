@@ -33,14 +33,14 @@ def mdoel_inference_test(device="cpu", mode="train"):
     )
     import pickle
 
-    with open("dataset/arm/arm.pkl", "rb") as f:
+    with open("dataset/run_and_grasp_half/run_and_grasp_half.pkl", "rb") as f:
         loaded_data = pickle.load(f)
     train_data, test_data = split_dataset([loaded_data[0]], ratio=0.8)
     # train_dataset = MyDataset(data=[train_data[0]], transform=preprocess)
     train_dataset = MyDataset(data=train_data, transform=preprocess, noise=0)
-    train_loader = DataLoader(train_dataset, batch_size=40, shuffle=False, num_workers=0)
-    test_dataset = MyDataset(data=test_data, transform=preprocess)
-    test_loader = DataLoader(test_dataset, batch_size=40, shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False, num_workers=0)
+    # test_dataset = MyDataset(data=test_data, transform=preprocess)
+    # test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False, num_workers=0)
 
     # dataloaders = {"train": train_loader, "val": test_loader}
 
@@ -51,7 +51,7 @@ def mdoel_inference_test(device="cpu", mode="train"):
         torch.load(
             # "/root/catkin_ws/src/dl_ros_for_mm/arm_best.pth",
             # "/root/catkin_ws/src/dl_ros_for_mm/arm_best_wo_cnn.pth",
-            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_arm/best_model.pth",
+            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp/best_model.pth",
             map_location="cuda",
         )
     )
@@ -75,13 +75,17 @@ def mdoel_inference_test(device="cpu", mode="train"):
         # with torch.set_grad_enabled(False):
         with torch.no_grad():
             base_cmd, arm_trans, arm_angle, arm_action = model(*inputs)
-            print(f"base ans: {target[0]}, pred: {base_cmd}")
-            print()
+            print("### value")
+            # print(f"base ans: {target[0]}, pred: {base_cmd}")
             print(f"trans ans: {target[1]}, pred: {arm_trans}")
+            # print(f"angle ans: {target[2]}, pred: {arm_angle}")
             print()
-            print(f"angle ans: {target[2]}, pred: {arm_angle}")
+            print("### diff")
+            # print(f"base diff: {target[0] - base_cmd}, pred: {base_cmd}")
+            print(f"trans diff: {target[1] - arm_trans}, pred: {arm_trans}")
+            # print(f"angle diff: {target[2] - arm_angle}, pred: {arm_angle}")
             print()
-            print(f"action ans: {target[3]}, pred: {arm_action}")
+            # print(f"action ans: {target[3]}, pred: {arm_action}")
             # arm_trans, arm_angle = model(inputs[-1])
             # print(f"trans ans: {target[1]}, pred: {arm_trans}")
             # print()

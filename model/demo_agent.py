@@ -155,7 +155,7 @@ class DemoAgent(BaseAgent):
             self.pose_pub_2.publish(pose_cmd)
 
         trigger_cmd_1 = Float32()
-        trigger_cmd_1.data = 1.0
+        trigger_cmd_1.data = 0.0
         if to_ros:
             self.trigger_pub_1.publish(trigger_cmd_1)
 
@@ -167,7 +167,7 @@ class DemoAgent(BaseAgent):
 
         self.prev_pos_trans = pose_cmd.pose.position
         self.prev_pos_quat = pose_cmd.pose.orientation
-        print(self.prev_pos_trans)
+        # print(step, self.prev_pos_trans)
         print(step, pose_trans)
 
 
@@ -214,8 +214,8 @@ if __name__ == "__main__":
     import pickle
 
     with open(
-        # "/root/catkin_ws/src/dl_ros_for_mm/dataset/run_and_grasp/run_and_grasp.pkl", "rb"
-        "/root/catkin_ws/src/dl_ros_for_mm/dataset/arm/arm.pkl", "rb"
+        "/root/catkin_ws/src/dl_ros_for_mm/dataset/run_and_grasp/run_and_grasp.pkl", "rb"
+        # "/root/catkin_ws/src/dl_ros_for_mm/dataset/arm/arm.pkl", "rb"
     ) as f:
         loaded_data = pickle.load(f)
     # print(loaded_data[0]["arm_action"])

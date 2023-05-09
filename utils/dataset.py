@@ -92,7 +92,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=str, default="run_and_grasp")
     args = parser.parse_args()
 
-    with open(f"dataset/{args.dataset}/{args.dataset}.pkl", "rb") as f:
+    with open(f"dataset/{args.dataset}/{args.dataset}_half.pkl", "rb") as f:
         loaded_data = pickle.load(f)
     print(len(loaded_data))
     print(len(loaded_data[0]["base_cmd"]))
@@ -106,9 +106,9 @@ if __name__ == "__main__":
     # print(loaded_data[0].keys())
     # print(loaded_data[0]["arm_action"])
     # for key in loaded_data[0].keys():
-    #     loaded_data[0][key] = loaded_data[0][key][:100]
+    #     loaded_data[0][key] = loaded_data[0][key][:60]
     # # loaded_data[0]["arm_action"] = loaded_data[0]["arm_action"][:100]
-    # with open(f"dataset/{args.dataset}/{args.dataset}.pkl", "wb") as f:
+    # with open(f"dataset/{args.dataset}/{args.dataset}_half.pkl", "wb") as f:
     #     pickle.dump(loaded_data, f)
     # exit()
     # train_dataset = MyDataset(data=loaded_data[0], noise=0.005)
