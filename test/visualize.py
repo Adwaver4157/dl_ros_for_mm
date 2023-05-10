@@ -7,7 +7,8 @@ from torchvision import transforms
 
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
-
+# import matplotlib
+# matplotlib.use('Agg')
 
 
 def show_image(image, data_type="head_images"):
@@ -63,8 +64,8 @@ def visualize_movie(file_path="dataset/run_and_grasp/run_and_grasp.pkl"):
     with open(file_path, "rb") as f:
         loaded_data = pickle.load(f)
 
-    # data_type = "head_images"
-    data_type = "hand_images"
+    data_type = "head_images"
+    # data_type = "hand_images"
     images = loaded_data[0][data_type]
     print(f'images steps: {len(images)}')
 

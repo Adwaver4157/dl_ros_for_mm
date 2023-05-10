@@ -76,8 +76,8 @@ class MyDataset(Dataset):
         hand_image = hand_image.permute(2, 1, 0)
 
         if self.transform:
-            head_image = self.transform(head_image)
-            hand_image = self.transform(hand_image)
+            head_image = self.transform(head_image/255)
+            hand_image = self.transform(hand_image/255)
 
         return (head_image, hand_image, joint_states), (
             base_cmd,

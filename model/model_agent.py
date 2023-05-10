@@ -25,11 +25,16 @@ from geometry_msgs.msg import PoseStamped, Twist, Vector3, Quaternion
 from std_msgs.msg import Float32
 
 from model.base_agent import BaseAgent
-from model.bc import BCAgent
+from model.bc import BCAgent, BCAgentNoCNN
 from model.env import Env
 from utils.device import select_device
 from utils.dataset import MyDataset
 from torch.utils.data import DataLoader
+from matplotlib import pyplot as plt
+import matplotlib.animation as animation
+import cv2
+import pickle
+
 
 def visualize_movie(file_path="dataset/run_and_grasp/run_and_grasp.pkl"):
     with open(file_path, "rb") as f:
@@ -38,10 +43,9 @@ def visualize_movie(file_path="dataset/run_and_grasp/run_and_grasp.pkl"):
     # data_type = "head_images"
     data_type = "hand_images"
     images = loaded_data[0][data_type]
-    print(f'images steps: {len(images)}')
+    print(f"images steps: {len(images)}")
 
     fig, ax = plt.subplots()
-
 
     def update(image):
         numpy_image = (image.to("cpu").detach().numpy()).astype(np.uint8).copy()
@@ -54,13 +58,14 @@ def visualize_movie(file_path="dataset/run_and_grasp/run_and_grasp.pkl"):
         else:
             image = image.permute(2, 1, 0).permute(2, 1, 0).flip(2)
         bgr = image.to("cpu").detach().numpy().astype(np.uint8).copy()
-        rgb = bgr[...,::-1].copy()
+        rgb = bgr[..., ::-1].copy()
         plt.clf()
         plt.imshow(rgb)
 
     anim = animation.FuncAnimation(fig, update, frames=images, interval=100)
 
     plt.show()
+
 
 class ModelAgent(BaseAgent):
     def __init__(
@@ -70,7 +75,8 @@ class ModelAgent(BaseAgent):
         config="/root/catkin_ws/src/dl_ros_for_mm/configs/config.json",
         device="cuda",
         # steps=25,
-        steps=110,
+        steps=150,
+        hz=10,
     ):
         super().__init__(model=model)
         self.transform = transforms.Compose(
@@ -87,7 +93,8 @@ class ModelAgent(BaseAgent):
         self.joint_states_msg = None
         self.index = 0
         self.steps = steps
-        
+        rate = rospy.Rate(hz)
+
         self.image_lst = []
 
         rospy.Subscriber(
@@ -137,6 +144,7 @@ class ModelAgent(BaseAgent):
                     self.step()
                 else:
                     break
+                rate.sleep()
             trigger_cmd_2 = Float32()
             trigger_cmd_2.data = 0.0
             self.trigger_pub_2.publish(trigger_cmd_2)
@@ -158,17 +166,18 @@ class ModelAgent(BaseAgent):
             base_vel, pose_trans, pose_angle, pose_action = self.model(
                 head_image, hand_image, joint_state
             )
+            # pose_trans, pose_angle = self.model(joint_state)
 
-            base_vel = base_vel.to("cpu").detach().numpy().astype(np.float64).copy()
+            # base_vel = base_vel.to("cpu").detach().numpy().astype(np.float64).copy()
             # print(base_vel)
-            base_cmd = Twist()
+            # base_cmd = Twist()
             # base_cmd.linear.x = base_vel[0][0]
             # base_cmd.angular.z = base_vel[0][1]
 
             # to_ros = False
             to_ros = True
-            if to_ros:
-                self.base_pub.publish(base_cmd)
+            # if to_ros:
+            # self.base_pub.publish(base_cmd)
 
             pose_trans = pose_trans.to("cpu").detach().numpy().astype(np.float64).copy()
             pose_euler = pose_angle.to("cpu").detach().numpy().astype(np.float64).copy()
@@ -193,12 +202,12 @@ class ModelAgent(BaseAgent):
             if to_ros:
                 self.trigger_pub_1.publish(trigger_cmd_1)
 
-            pose_action = (
-                pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
-            )
+            # pose_action = (
+            #     pose_action.to("cpu").detach().numpy().astype(np.float64).copy()
+            # )
             trigger_cmd_2 = Float32()
-            # print(pose_action[0][0])
-            trigger_cmd_2.data = pose_action[0][0]
+            # # print(pose_action[0][0])
+            # trigger_cmd_2.data = pose_action[0][0]
             trigger_cmd_2.data = 1.0
             if to_ros:
                 self.trigger_pub_2.publish(trigger_cmd_2)
@@ -227,35 +236,64 @@ class ModelAgent(BaseAgent):
             and self.hand_rgb_msg is not None
             and self.joint_states_msg is not None
         ):
+            
             head_rgb = convert_Image(
                 self.head_rgb_msg, self.config["height"], self.config["width"]
             )
+            # print(self.head_rgb_msg)
             hand_rgb = convert_Image(
                 self.hand_rgb_msg, self.config["height"], self.config["width"]
             )
+            # print(self.hand_rgb_msg)
+
+            # plt.imshow(head_rgb[0])
+            # plt.show()
+            # # print(head_rgb[0])
+            # plt.imshow(hand_rgb[0])
+            # plt.show()
+            # print(hand_rgb[0])
             joint_states = convert_JointStates(self.joint_states_msg)
             torch_data["head_image"] = (
                 torch.tensor(head_rgb[0], dtype=torch.float32).flip(2).permute(2, 1, 0)
             ).unsqueeze(0)
+            # head_rgb = torch_data["head_image"].squeeze(0).permute(2,1,0).to("cpu").detach().numpy().astype(np.uint8).copy()
+            # plt.imshow(head_rgb)
+            # plt.show()
+            # print(torch_data["head_image"])
+            # print(head_rgb)
+            
             torch_data["hand_image"] = (
                 torch.tensor(hand_rgb[0], dtype=torch.float32)
-                .permute(2, 1, 0)
-                .unsqueeze(0)
-            )
+                .permute(2, 1, 0)  
+            ).unsqueeze(0)
+            # hand_rgb = torch_data["hand_image"].squeeze(0).permute(2,1,0).to("cpu").detach().numpy().astype(np.uint8).copy()
+            # plt.imshow(hand_rgb)
+            # plt.show()
+            # print(torch_data["hand_image"])
+            # print(hand_rgb)
 
             if self.transform:
-                torch_data["head_image"] = self.transform(torch_data["head_image"])
-                torch_data["hand_image"] = self.transform(torch_data["hand_image"])
-            
-            visualize  = True
-            if visualize:
-                self.image_lst.append(torch_data["hand_image"])
-                if len(self.image_lst) % 50:
-                    fig, ax = plt.subplots()
-                    anim = animation.FuncAnimation(fig, update, frames=self.image_lst, interval=100)
+                torch_data["head_image"] = self.transform(torch_data["head_image"] / 255)
+                torch_data["hand_image"] = self.transform(torch_data["hand_image"] / 255)
+            # print(torch_data["head_image"])
+            # print(torch_data["hand_image"])
 
-                    plt.show()
-            
+            # visualize = True
+            visualize = False
+            if visualize:
+                self.update(torch_data["head_image"])
+                plt.show()
+                self.update(torch_data["hand_image"])
+                plt.show()
+                # self.image_lst.append(torch_data["hand_image"])
+                # if len(self.image_lst) % 50:
+                #     fig, ax = plt.subplots()
+                #     anim = animation.FuncAnimation(
+                #         fig, self.update, frames=self.image_lst, interval=100
+                #     )
+
+                #     plt.show()
+
             torch_data["joint_state"] = torch.tensor(joint_states, dtype=torch.float32)
 
             return torch_data
@@ -264,21 +302,14 @@ class ModelAgent(BaseAgent):
 
     def update(self, image):
         data_type = "hand_image"
-        numpy_image = (torch_data[data_type].permute(2, 1, 0).squeeze(0).to("cpu").detach().numpy()).astype(np.uint8).copy()
-        image = torch.Tensor(cv2.resize(numpy_image, (224, 224)))
         print(image.shape)
-        if data_type == "head_images":
-            # headがなぜかbgrがデフォルト
-            image = image.permute(2, 1, 0).permute(2, 1, 0)
-            # bgr = numpy_image.transpose(2, 1, 0)
-        else:
-            image = image.permute(2, 1, 0).permute(2, 1, 0).flip(2)
-        bgr = image.to("cpu").detach().numpy().astype(np.uint8).copy()
-        rgb = bgr[...,::-1].copy()
+        numpy_image = (
+            (image.squeeze(0).permute(2, 1, 0).to("cpu").detach().numpy())
+            .astype(np.uint8)
+            .copy()
+        )
         plt.clf()
-        plt.imshow(rgb)
-
-            
+        plt.imshow(numpy_image)
 
     def head_rgb_callback(self, msg):
         self.head_rgb_msg = msg
@@ -299,15 +330,18 @@ if __name__ == "__main__":
     )
     device = rospy.get_param("/device", "cuda")
 
-    device = select_device(device)
+    device = select_device("cpu")
     model = BCAgent()
+    # model = BCAgentNoCNN()
     model.load_state_dict(
         torch.load(
             # "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_arm/best_model.pth",
-            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp/model_35.pth",
-            map_location="cuda:0",
+            # "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp/model_35.pth",
+            "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp_w_cnn_half/best_model.pth",
+            # "/root/catkin_ws/src/dl_ros_for_mm/weight/BC_run_and_grasp_w_cnn/best_model.pth",
+            map_location="cpu",
         )
     )
     model.to(device)
     env = Env(config=config)
-    agent = ModelAgent(model=model, env=env, device=device)
+    agent = ModelAgent(model=model, env=env, device=device, steps=100)

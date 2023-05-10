@@ -18,16 +18,18 @@ from utils.dataset import MyDataset, split_dataset
 from utils.device import select_device
 from utils.utils import torch_fix_seed
 
+import matplotlib.pyplot as plt
+
 
 def train(args):
     wandb.init(
         project=f"{args.name}",
         name=f"run_{args.epochs}_{args.batch_size}_{args.exp_name}",
     )
-    if os.path.exists(f"weight/{args.name}"):
+    if os.path.exists(f"weight/{args.name}_{args.exp_name}"):
         print("Warning: weight folder already exists")
     else:
-        os.makedirs(f"weight/{args.name}", exist_ok=True)
+        os.makedirs(f"weight/{args.name}_{args.exp_name}", exist_ok=True)
 
     with open(f"dataset/{args.dataset_name}/{args.dataset_name}.pkl", "rb") as f:
         loaded_data = pickle.load(f)
@@ -106,14 +108,25 @@ def train(args):
                     # print(inputs[2].shape)
                     if args.model_name == "cnn":
                         base_cmd, arm_trans, arm_angle, arm_action = model(*inputs)
-
+                        # print(inputs[0])
+                        # print(inputs[1])
+                        # head_rgb = inputs[0].squeeze(0).permute(2,1,0).to("cpu").detach().numpy().astype(np.uint8).copy()
+                        # plt.imshow(head_rgb)
+                        # plt.show()
+                        # print(head_rgb)
+                        # hand_rgb = inputs[1].squeeze(0).permute(2,1,0).to("cpu").detach().numpy().astype(np.uint8).copy()
+                        # plt.imshow(hand_rgb)
+                        # plt.show()
+                        # print(hand_rgb)
                         print(f"trans ans: {target[1]}, pred: {arm_trans}")
                         print(f"angle ans: {target[2]}, pred: {arm_angle}")
                         print()
                         loss_base = huber_loss(base_cmd, target[0])
                         loss_arm_trans = huber_loss(arm_trans, target[1])
                         loss_arm_angle = huber_loss(arm_angle, target[2])
-                        loss_arm_action = ce_loss(arm_action, target[3].squeeze(1).long())
+                        loss_arm_action = ce_loss(
+                            arm_action, target[3].squeeze(1).long()
+                        )
                         loss = (
                             loss_base
                             + loss_arm_trans
@@ -127,14 +140,7 @@ def train(args):
                         print()
                         loss_arm_trans = huber_loss(arm_trans, target[1])
                         loss_arm_angle = huber_loss(arm_angle, target[2])
-                        loss = (
-                            loss_arm_trans
-                            + loss_arm_angle
-                        )
-
-
-
-
+                        loss = loss_arm_trans + loss_arm_angle
 
                     # backward + optimize only if in training phase
                     if phase == "train":
@@ -154,7 +160,7 @@ def train(args):
                             }
                         )
                     elif args.model_name == "wo_cnn":
-                            wandb.log(
+                        wandb.log(
                             {
                                 "epoch": epoch,
                                 "lr": optimizer.param_groups[0]["lr"],
@@ -172,13 +178,18 @@ def train(args):
             print(f"{phase} Loss: {epoch_loss:.4f}")
 
             if epoch % 5 == 0:
-                torch.save(model.state_dict(), f"weight/{args.name}/model_{epoch}.pth")
+                torch.save(
+                    model.state_dict(),
+                    f"weight/{args.name}_{args.exp_name}/model_{epoch}.pth",
+                )
 
             # deep copy the model
             if phase == "val" and epoch_loss < best_loss:
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
-                torch.save(best_model_wts, f"weight/{args.name}/best_model.pth")
+                torch.save(
+                    best_model_wts, f"weight/{args.name}_{args.exp_name}/best_model.pth"
+                )
 
             val_loss_history.append(epoch_loss)
         scheduler.step()
@@ -192,7 +203,7 @@ def train(args):
         )
     )
     print("Best loss: {:4f}".format(best_loss))
-    torch.save(best_model_wts, f"weight/{args.name}/best_model.pth")
+    torch.save(best_model_wts, f"weight/{args.name}_{args.exp_name}/best_model.pth")
 
     # # load best model weights
     # model.load_state_dict(best_model_wts)
@@ -216,8 +227,10 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--log_interval", type=int, default=5)
     parser.add_argument("--action_noise", type=float, default=0.000)
-    parser.add_argument("--dataset_name", type=str, default="run_and_grasp_half")
-    parser.add_argument("--model_name", type=str, default="cnn", choices=["cnn", "wo_cnn"])
+    parser.add_argument("--dataset_name", type=str, default="run_and_grasp")
+    parser.add_argument(
+        "--model_name", type=str, default="cnn", choices=["cnn", "wo_cnn"]
+    )
     args = parser.parse_args()
 
     train(args)
